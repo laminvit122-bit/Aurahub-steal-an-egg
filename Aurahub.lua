@@ -3,26 +3,25 @@ local Players = game:GetService("Players")
 local Workspace = game:GetService("Workspace")
 local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
+local UserInputService = game:GetService("UserInputService")
 local CoreGui = game:GetService("CoreGui")
 
 local LocalPlayer = Players.LocalPlayer
-local Camera = Workspace.CurrentCamera
 
 -- [[ 2. НАСТРОЙКИ AURA HUB ]]
 local Settings = {
-    AutoFarm = false,
-    FarmDelay = 1.5,
-    MoveSpeed = 100, -- Безопасная скорость движения (не триггерит античит)
+    SpeedHack = false,
+    WalkSpeed = 32,
+    InfJump = false,
     RareHighlight = false,
-    PlayerESP = false,
-    HomeCFrame = nil
+    PlayerESP = false
 }
 
 local EggFolder = Workspace:WaitForChild("AreaEggSlotsClient", 5) or Workspace
 
 -- [[ 3. СОЗДАНИЕ ГРАФИЧЕСКОГО ИНТЕРФЕЙСА ]]
 local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "AuraHub_Official"
+ScreenGui.Name = "AuraHub_Clean"
 ScreenGui.ResetOnSpawn = false
 
 pcall(function() ScreenGui.Parent = CoreGui end)
@@ -45,7 +44,7 @@ local UIStroke = Instance.new("UIStroke", MainFrame)
 UIStroke.Thickness = 1.5
 UIStroke.Color = Color3.fromRGB(130, 80, 230)
 
--- Фон с падающими частицами пыли
+-- Фон с анимированной пылью
 local ParticleContainer = Instance.new("Frame", MainFrame)
 ParticleContainer.Size = UDim2.new(1, 0, 1, 0)
 ParticleContainer.BackgroundTransparency = 1
@@ -73,7 +72,7 @@ task.spawn(function()
     end
 end)
 
--- Шапка (Header)
+-- Шапка
 local Header = Instance.new("Frame", MainFrame)
 Header.Size = UDim2.new(1, 0, 0, 42)
 Header.BackgroundColor3 = Color3.fromRGB(24, 22, 35)
@@ -82,7 +81,7 @@ Header.ZIndex = 2
 Instance.new("UICorner", Header).CornerRadius = UDim.new(0, 14)
 
 local Title = Instance.new("TextLabel", Header)
-Title.Text = "  ✨ AuraHub — Steal an Egg"
+Title.Text = "  AuraHub — Steal an Egg"
 Title.Size = UDim2.new(0.6, 0, 1, 0)
 Title.TextColor3 = Color3.fromRGB(200, 150, 255)
 Title.Font = Enum.Font.GothamBold
@@ -91,7 +90,7 @@ Title.TextXAlignment = Enum.TextXAlignment.Left
 Title.BackgroundTransparency = 1
 Title.ZIndex = 3
 
--- Кнопка закрытия (×)
+-- Кнопки закрытия и сворачивания
 local CloseBtn = Instance.new("TextButton", Header)
 CloseBtn.Size = UDim2.new(0, 28, 0, 28)
 CloseBtn.Position = UDim2.new(1, -34, 0.5, -14)
@@ -103,17 +102,14 @@ CloseBtn.TextSize = 18
 CloseBtn.ZIndex = 3
 Instance.new("UICorner", CloseBtn).CornerRadius = UDim.new(0, 8)
 
-CloseBtn.MouseButton1Click:Connect(function() ScreenGui:Destroy() end)
-
--- Виджет свертывания (-)
 local MinimizedFrame = Instance.new("Frame", ScreenGui)
-MinimizedFrame.Size = UDim2.new(0, 50, 0, 50)
+MinimizedFrame.Size = UDim2.new(0, 44, 0, 44)
 MinimizedFrame.Position = UDim2.new(0.1, 0, 0.2, 0)
 MinimizedFrame.BackgroundColor3 = Color3.fromRGB(25, 20, 40)
 MinimizedFrame.Visible = false
 MinimizedFrame.Active = true
 MinimizedFrame.Draggable = true
-Instance.new("UICorner", MinimizedFrame).CornerRadius = UDim.new(0, 12)
+Instance.new("UICorner", MinimizedFrame).CornerRadius = UDim.new(0, 10)
 
 local MinStroke = Instance.new("UIStroke", MinimizedFrame)
 MinStroke.Color = Color3.fromRGB(150, 90, 255)
@@ -122,8 +118,10 @@ MinStroke.Thickness = 2
 local OpenBtn = Instance.new("TextButton", MinimizedFrame)
 OpenBtn.Size = UDim2.new(1, 0, 1, 0)
 OpenBtn.BackgroundTransparency = 1
-OpenBtn.Text = "✨"
-OpenBtn.TextSize = 22
+OpenBtn.Text = "A"
+OpenBtn.TextColor3 = Color3.fromRGB(200, 150, 255)
+OpenBtn.Font = Enum.Font.GothamBold
+OpenBtn.TextSize = 18
 
 local MinimizeBtn = Instance.new("TextButton", Header)
 MinimizeBtn.Size = UDim2.new(0, 28, 0, 28)
@@ -136,15 +134,57 @@ MinimizeBtn.TextSize = 18
 MinimizeBtn.ZIndex = 3
 Instance.new("UICorner", MinimizeBtn).CornerRadius = UDim.new(0, 8)
 
+-- [[ АНИМАЦИИ ДЛЯ ЗАКРЫТИЯ И СВОРАЧИВАНИЯ ]]
+local isAnimating = false
+
+CloseBtn.MouseButton1Click:Connect(function()
+    if isAnimating then return end
+    isAnimating = true
+    local tween = TweenService:Create(MainFrame, TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.In), {
+        Size = UDim2.new(0, 0, 0, 0),
+        Position = UDim2.new(MainFrame.Position.X.Scale, MainFrame.Position.X.Offset + 260, MainFrame.Position.Y.Scale, MainFrame.Position.Y.Offset + 165)
+    })
+    tween:Play()
+    tween.Completed:Connect(function()
+        ScreenGui:Destroy()
+    end)
+end)
+
 MinimizeBtn.MouseButton1Click:Connect(function()
-    MainFrame.Visible = false
-    MinimizedFrame.Position = UDim2.new(0, MainFrame.AbsolutePosition.X, 0, MainFrame.AbsolutePosition.Y)
-    MinimizedFrame.Visible = true
+    if isAnimating then return end
+    isAnimating = true
+    
+    MinimizedFrame.Position = UDim2.new(0, MainFrame.AbsolutePosition.X + 238, 0, MainFrame.AbsolutePosition.Y + 143)
+    
+    local tween = TweenService:Create(MainFrame, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
+        Size = UDim2.new(0, 0, 0, 0),
+        Position = UDim2.new(0, MinimizedFrame.Position.X.Offset + 22, 0, MinimizedFrame.Position.Y.Offset + 22)
+    })
+    tween:Play()
+    tween.Completed:Connect(function()
+        MainFrame.Visible = false
+        MinimizedFrame.Visible = true
+        isAnimating = false
+    end)
 end)
 
 OpenBtn.MouseButton1Click:Connect(function()
-    MinimizedFrame.Visible = false
+    if isAnimating then return end
+    isAnimating = true
+    
+    MainFrame.Size = UDim2.new(0, 0, 0, 0)
+    MainFrame.Position = UDim2.new(0, MinimizedFrame.Position.X.Offset + 22, 0, MinimizedFrame.Position.Y.Offset + 22)
     MainFrame.Visible = true
+    MinimizedFrame.Visible = false
+
+    local tween = TweenService:Create(MainFrame, TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+        Size = UDim2.new(0, 520, 0, 330),
+        Position = UDim2.new(0.5, -260, 0.5, -165)
+    })
+    tween:Play()
+    tween.Completed:Connect(function()
+        isAnimating = false
+    end)
 end)
 
 -- Сайдбар
@@ -216,7 +256,8 @@ local VisualsPage = CreateTab("Visuals", 17412298151)
 Tabs["Main"].Page.Visible = true
 Tabs["Main"].Button.BackgroundColor3 = Color3.fromRGB(130, 70, 220)
 
--- [[ 4. ЭЛЕМЕНТЫ УПРАВЛЕНИЯ ]]
+-- [[ 4. ЭЛЕМЕНТЫ УПРАВЛЕНИЯ И ИНТЕРФЕЙСА ]]
+
 local function CreateToggle(parent, text, default, callback)
     local Frame = Instance.new("Frame", parent)
     Frame.Size = UDim2.new(1, -10, 0, 40)
@@ -248,73 +289,70 @@ local function CreateToggle(parent, text, default, callback)
     end)
 end
 
--- [[ 5. БЕЗОПАСНЫЙ ФАРМ И ОБХОД АНТИЧИТА ]]
+local function CreateButton(parent, text, callback)
+    local Frame = Instance.new("Frame", parent)
+    Frame.Size = UDim2.new(1, -10, 0, 40)
+    Frame.BackgroundColor3 = Color3.fromRGB(24, 22, 35)
+    Instance.new("UICorner", Frame).CornerRadius = UDim.new(0, 8)
 
-local function SafeTweenTo(targetCFrame)
-    local char = LocalPlayer.Character
-    if not char or not char:FindFirstChild("HumanoidRootPart") then return end
-    local hrp = char.HumanoidRootPart
+    local ActionBtn = Instance.new("TextButton", Frame)
+    ActionBtn.Size = UDim2.new(1, 0, 1, 0)
+    ActionBtn.BackgroundTransparency = 1
+    ActionBtn.Text = text
+    ActionBtn.TextColor3 = Color3.fromRGB(200, 150, 255)
+    ActionBtn.Font = Enum.Font.GothamSemibold
+    ActionBtn.TextSize = 13
 
-    local distance = (hrp.Position - targetCFrame.Position).Magnitude
-    local timeToReach = distance / Settings.MoveSpeed
-
-    local tweenInfo = TweenInfo.new(math.clamp(timeToReach, 0.2, 2.5), Enum.EasingStyle.Linear)
-    local tween = TweenService:Create(hrp, tweenInfo, {CFrame = targetCFrame})
-    tween:Play()
-    tween.Completed:Wait()
-end
-
-local function GetBestEggPart()
-    local bestPart = nil
-    pcall(function()
-        for _, slot in pairs(EggFolder:GetChildren()) do
-            local part = slot:FindFirstChild("Hitbox") 
-                or slot:FindFirstChild("AreaEggHover") 
-                or slot:FindFirstChildWhichIsA("BasePart", true)
-            if part then
-                bestPart = part
-            end
-        end
+    ActionBtn.MouseButton1Click:Connect(function()
+        TweenService:Create(Frame, TweenInfo.new(0.1), {BackgroundColor3 = Color3.fromRGB(40, 35, 60)}):Play()
+        task.wait(0.1)
+        TweenService:Create(Frame, TweenInfo.new(0.1), {BackgroundColor3 = Color3.fromRGB(24, 22, 35)}):Play()
+        callback()
     end)
-    return bestPart
 end
 
-CreateToggle(MainPage, "Safe Auto Farm", Settings.AutoFarm, function(v)
-    Settings.AutoFarm = v
-    if v and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
-        Settings.HomeCFrame = LocalPlayer.Character.HumanoidRootPart.CFrame
+-- Наполнение вкладки Main
+CreateToggle(MainPage, "Speed Hack", Settings.SpeedHack, function(v)
+    Settings.SpeedHack = v
+    if not v and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
+        LocalPlayer.Character.Humanoid.WalkSpeed = 16
     end
 end)
 
+CreateToggle(MainPage, "Infinite Jump", Settings.InfJump, function(v)
+    Settings.InfJump = v
+end)
+
+CreateButton(MainPage, "Steal Nearest Egg (Once)", function()
+    pcall(function()
+        for _, slot in pairs(EggFolder:GetChildren()) do
+            local prompt = slot:FindFirstChildWhichIsA("ProximityPrompt", true)
+            if prompt then
+                fireproximityprompt(prompt)
+                break
+            end
+        end
+    end)
+end)
+
+-- Наполнение вкладки Visuals
 CreateToggle(VisualsPage, "Highlight Eggs", Settings.RareHighlight, function(v) Settings.RareHighlight = v end)
 CreateToggle(VisualsPage, "Player ESP", Settings.PlayerESP, function(v) Settings.PlayerESP = v end)
 
--- Безопасный цикл
-task.spawn(function()
-    while task.wait(Settings.FarmDelay) do
-        if Settings.AutoFarm then
-            pcall(function()
-                local eggPart = GetBestEggPart()
-                if eggPart then
-                    -- 1. Плавное движение к яйцу
-                    SafeTweenTo(eggPart.CFrame * CFrame.new(0, 2, 0))
-                    task.wait(0.5)
+-- [[ 5. ФУНКЦИОНАЛ SCRIPTA ]]
 
-                    -- 2. Взаимодействие (если есть ProximityPrompt)
-                    local prompt = eggPart.Parent:FindFirstChildWhichIsA("ProximityPrompt", true)
-                    if prompt then
-                        fireproximityprompt(prompt)
-                    end
-
-                    task.wait(1)
-
-                    -- 3. Плавный возврат на базу
-                    if Settings.HomeCFrame then
-                        SafeTweenTo(Settings.HomeCFrame)
-                    end
-                end
-            end)
+-- Speed Hack & Infinite Jump
+RunService.Stepped:Connect(function()
+    pcall(function()
+        if Settings.SpeedHack and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
+            LocalPlayer.Character.Humanoid.WalkSpeed = Settings.WalkSpeed
         end
+    end)
+end)
+
+UserInputService.JumpRequest:Connect(function()
+    if Settings.InfJump and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
+        LocalPlayer.Character.Humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
     end
 end)
 
