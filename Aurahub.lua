@@ -11,17 +11,22 @@ local LocalPlayer = Players.LocalPlayer
 -- [[ 2. НАСТРОЙКИ AURA HUB ]]
 local Settings = {
     SpeedHack = false,
-    WalkSpeed = 32,
-    InfJump = false,
+    WalkSpeed = 5,
+    SafeSpeedCap = true,
+    
     RareHighlight = false,
-    PlayerESP = false
+    OnlyRare = false, -- Фильтр: подсвечивать только редкие яйца
+    HighlightColor = Color3.fromRGB(160, 60, 255),
+    
+    PlayerESP = false,
+    ParticlesEnabled = true
 }
 
 local EggFolder = Workspace:WaitForChild("AreaEggSlotsClient", 5) or Workspace
 
 -- [[ 3. СОЗДАНИЕ ГРАФИЧЕСКОГО ИНТЕРФЕЙСА ]]
 local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "AuraHub_Clean"
+ScreenGui.Name = "AuraHub_Ultimate"
 ScreenGui.ResetOnSpawn = false
 
 pcall(function() ScreenGui.Parent = CoreGui end)
@@ -52,7 +57,7 @@ ParticleContainer.ZIndex = 1
 
 task.spawn(function()
     while task.wait(0.2) do
-        if MainFrame.Visible then
+        if MainFrame.Visible and Settings.ParticlesEnabled then
             local p = Instance.new("Frame", ParticleContainer)
             local size = math.random(2, 4)
             p.Size = UDim2.new(0, size, 0, size)
@@ -134,7 +139,7 @@ MinimizeBtn.TextSize = 18
 MinimizeBtn.ZIndex = 3
 Instance.new("UICorner", MinimizeBtn).CornerRadius = UDim.new(0, 8)
 
--- [[ АНИМАЦИИ ДЛЯ ЗАКРЫТИЯ И СВОРАЧИВАНИЯ ]]
+-- [[ АНИМАЦИИ ЗАКРЫТИЯ И СВОРАЧИВАНИЯ ]]
 local isAnimating = false
 
 CloseBtn.MouseButton1Click:Connect(function()
@@ -145,15 +150,12 @@ CloseBtn.MouseButton1Click:Connect(function()
         Position = UDim2.new(MainFrame.Position.X.Scale, MainFrame.Position.X.Offset + 260, MainFrame.Position.Y.Scale, MainFrame.Position.Y.Offset + 165)
     })
     tween:Play()
-    tween.Completed:Connect(function()
-        ScreenGui:Destroy()
-    end)
+    tween.Completed:Connect(function() ScreenGui:Destroy() end)
 end)
 
 MinimizeBtn.MouseButton1Click:Connect(function()
     if isAnimating then return end
     isAnimating = true
-    
     MinimizedFrame.Position = UDim2.new(0, MainFrame.AbsolutePosition.X + 238, 0, MainFrame.AbsolutePosition.Y + 143)
     
     local tween = TweenService:Create(MainFrame, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
@@ -171,7 +173,6 @@ end)
 OpenBtn.MouseButton1Click:Connect(function()
     if isAnimating then return end
     isAnimating = true
-    
     MainFrame.Size = UDim2.new(0, 0, 0, 0)
     MainFrame.Position = UDim2.new(0, MinimizedFrame.Position.X.Offset + 22, 0, MinimizedFrame.Position.Y.Offset + 22)
     MainFrame.Visible = true
@@ -182,9 +183,7 @@ OpenBtn.MouseButton1Click:Connect(function()
         Position = UDim2.new(0.5, -260, 0.5, -165)
     })
     tween:Play()
-    tween.Completed:Connect(function()
-        isAnimating = false
-    end)
+    tween.Completed:Connect(function() isAnimating = false end)
 end)
 
 -- Сайдбар
@@ -248,15 +247,15 @@ local function CreateTab(name, iconId)
     return Page
 end
 
--- Вкладка Main с иконкой Домика (7539983773)
+-- Вкладки
 local MainPage = CreateTab("Main", 7539983773)
--- Вкладка Visuals с иконкой Глаза (17412298151)
 local VisualsPage = CreateTab("Visuals", 17412298151)
+local SettingsPage = CreateTab("Settings", 11956055886)
 
 Tabs["Main"].Page.Visible = true
 Tabs["Main"].Button.BackgroundColor3 = Color3.fromRGB(130, 70, 220)
 
--- [[ 4. ЭЛЕМЕНТЫ УПРАВЛЕНИЯ И ИНТЕРФЕЙСА ]]
+-- [[ 4. КОМПОНЕНТЫ ИНТЕРФЕЙСА ]]
 
 local function CreateToggle(parent, text, default, callback)
     local Frame = Instance.new("Frame", parent)
@@ -311,16 +310,12 @@ local function CreateButton(parent, text, callback)
     end)
 end
 
--- Наполнение вкладки Main
+-- MAIN TAB
 CreateToggle(MainPage, "Speed Hack", Settings.SpeedHack, function(v)
     Settings.SpeedHack = v
     if not v and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
         LocalPlayer.Character.Humanoid.WalkSpeed = 16
     end
-end)
-
-CreateToggle(MainPage, "Infinite Jump", Settings.InfJump, function(v)
-    Settings.InfJump = v
 end)
 
 CreateButton(MainPage, "Steal Nearest Egg (Once)", function()
@@ -335,13 +330,159 @@ CreateButton(MainPage, "Steal Nearest Egg (Once)", function()
     end)
 end)
 
--- Наполнение вкладки Visuals
+-- VISUALS TAB
 CreateToggle(VisualsPage, "Highlight Eggs", Settings.RareHighlight, function(v) Settings.RareHighlight = v end)
 CreateToggle(VisualsPage, "Player ESP", Settings.PlayerESP, function(v) Settings.PlayerESP = v end)
 
--- [[ 5. ФУНКЦИОНАЛ SCRIPTA ]]
+-- SETTINGS TAB (Настройка всех функций)
+CreateToggle(SettingsPage, "ESP: Only Rare Eggs", Settings.OnlyRare, function(v)
+    Settings.OnlyRare = v
+    -- Сброс старых подсветок при изменении фильтра
+    for _, slot in pairs(EggFolder:GetChildren()) do
+        if slot:FindFirstChild("AuraHighlight") then
+            slot.AuraHighlight:Destroy()
+        end
+    end
+end)
 
--- Speed Hack & Infinite Jump
+CreateToggle(SettingsPage, "Speed: Anti-Cheat Cap", Settings.SafeSpeedCap, function(v)
+    Settings.SafeSpeedCap = v
+end)
+
+CreateToggle(SettingsPage, "UI: Background Particles", Settings.ParticlesEnabled, function(v)
+    Settings.ParticlesEnabled = v
+    ParticleContainer.Visible = v
+end)
+
+CreateButton(SettingsPage, "ESP Color: Purple / Green / Red", function()
+    if Settings.HighlightColor == Color3.fromRGB(160, 60, 255) then
+        Settings.HighlightColor = Color3.fromRGB(50, 255, 120) -- Зеленый
+    elseif Settings.HighlightColor == Color3.fromRGB(50, 255, 120) then
+        Settings.HighlightColor = Color3.fromRGB(255, 50, 80) -- Красный
+    else
+        Settings.HighlightColor = Color3.fromRGB(160, 60, 255) -- Фиолетовый
+    end
+    -- Обновление цветов в реальном времени
+    for _, slot in pairs(EggFolder:GetChildren()) do
+        if slot:FindFirstChild("AuraHighlight") then
+            slot.AuraHighlight.FillColor = Settings.HighlightColor
+        end
+    end
+end)
+
+-- [[ 5. ПЛАВАЮЩАЯ ШЕСТЕРЕНКА И ПАНЕЛЬ СКОРОСТИ ]]
+
+local GearButton = Instance.new("ImageButton", ScreenGui)
+GearButton.Name = "SpeedSettingsButton"
+GearButton.Size = UDim2.new(0, 42, 0, 42)
+GearButton.Position = UDim2.new(1, -60, 1, -60)
+GearButton.BackgroundColor3 = Color3.fromRGB(25, 20, 40)
+GearButton.Image = "rbxassetid://7059346373"
+GearButton.ImageColor3 = Color3.fromRGB(200, 150, 255)
+Instance.new("UICorner", GearButton).CornerRadius = UDim.new(0, 12)
+
+local GearStroke = Instance.new("UIStroke", GearButton)
+GearStroke.Color = Color3.fromRGB(130, 80, 230)
+GearStroke.Thickness = 1.5
+
+local SpeedPanel = Instance.new("Frame", ScreenGui)
+SpeedPanel.Name = "SpeedPanel"
+SpeedPanel.Size = UDim2.new(0, 280, 0, 70)
+SpeedPanel.Position = UDim2.new(1, -300, 1, 80)
+SpeedPanel.BackgroundColor3 = Color3.fromRGB(20, 18, 30)
+SpeedPanel.BorderSizePixel = 0
+Instance.new("UICorner", SpeedPanel).CornerRadius = UDim.new(0, 12)
+
+local PanelStroke = Instance.new("UIStroke", SpeedPanel)
+PanelStroke.Color = Color3.fromRGB(130, 80, 230)
+PanelStroke.Thickness = 1.5
+
+local SpeedText = Instance.new("TextLabel", SpeedPanel)
+SpeedText.Size = UDim2.new(1, -20, 0, 25)
+SpeedText.Position = UDim2.new(0, 10, 0, 8)
+SpeedText.BackgroundTransparency = 1
+SpeedText.Text = "Speed: 5"
+SpeedText.TextColor3 = Color3.fromRGB(220, 220, 255)
+SpeedText.Font = Enum.Font.GothamBold
+SpeedText.TextSize = 13
+SpeedText.TextXAlignment = Enum.TextXAlignment.Left
+
+local SliderBack = Instance.new("Frame", SpeedPanel)
+SliderBack.Size = UDim2.new(1, -20, 0, 8)
+SliderBack.Position = UDim2.new(0, 10, 0, 42)
+SliderBack.BackgroundColor3 = Color3.fromRGB(40, 35, 55)
+Instance.new("UICorner", SliderBack).CornerRadius = UDim.new(1, 0)
+
+local SliderFill = Instance.new("Frame", SliderBack)
+SliderFill.Size = UDim2.new(0, 0, 1, 0)
+SliderFill.BackgroundColor3 = Color3.fromRGB(130, 80, 230)
+Instance.new("UICorner", SliderFill).CornerRadius = UDim.new(1, 0)
+
+local SliderKnob = Instance.new("Frame", SliderBack)
+SliderKnob.Size = UDim2.new(0, 16, 0, 16)
+SliderKnob.Position = UDim2.new(0, -8, 0.5, -8)
+SliderKnob.BackgroundColor3 = Color3.fromRGB(220, 200, 255)
+Instance.new("UICorner", SliderKnob).CornerRadius = UDim.new(1, 0)
+
+local dragging = false
+local minSpeed = 5
+local maxSpeed = 100
+
+local function UpdateSlider(input)
+    local pos = math.clamp((input.Position.X - SliderBack.AbsolutePosition.X) / SliderBack.AbsoluteSize.X, 0, 1)
+    SliderFill.Size = UDim2.new(pos, 0, 1, 0)
+    SliderKnob.Position = UDim2.new(pos, -8, 0.5, -8)
+    
+    local speedVal = math.floor(minSpeed + (pos * (maxSpeed - minSpeed)))
+    
+    -- Учет лимита безопасного режима из настроек
+    if Settings.SafeSpeedCap and speedVal > 30 then
+        speedVal = 30
+    end
+    
+    Settings.WalkSpeed = speedVal
+    SpeedText.Text = "Speed: " .. tostring(speedVal) .. (Settings.SafeSpeedCap and " (Safe)" or "")
+end
+
+SliderBack.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        dragging = true
+        UpdateSlider(input)
+    end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+    if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+        UpdateSlider(input)
+    end
+end)
+
+UserInputService.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        dragging = false
+    end
+end)
+
+local panelOpen = false
+local currentRotation = 0
+
+GearButton.MouseButton1Click:Connect(function()
+    panelOpen = not panelOpen
+    currentRotation = currentRotation + 180
+
+    TweenService:Create(GearButton, TweenInfo.new(0.4, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+        Rotation = currentRotation
+    }):Play()
+
+    local targetPos = panelOpen and UDim2.new(1, -300, 1, -140) or UDim2.new(1, -300, 1, 80)
+    TweenService:Create(SpeedPanel, TweenInfo.new(0.4, Enum.EasingStyle.Back, panelOpen and Enum.EasingDirection.Out or Enum.EasingDirection.In), {
+        Position = targetPos
+    }):Play()
+end)
+
+-- [[ 6. ИСПОЛНЕНИЕ ЛОГИКИ ]]
+
+-- Speed Hack
 RunService.Stepped:Connect(function()
     pcall(function()
         if Settings.SpeedHack and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
@@ -350,24 +491,33 @@ RunService.Stepped:Connect(function()
     end)
 end)
 
-UserInputService.JumpRequest:Connect(function()
-    if Settings.InfJump and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
-        LocalPlayer.Character.Humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
-    end
-end)
-
--- Подсветка яиц
+-- Улучшенная подсветка (с учетом фильтра настроек)
 RunService.RenderStepped:Connect(function()
     if Settings.RareHighlight then
         pcall(function()
             for _, slot in pairs(EggFolder:GetChildren()) do
-                if not slot:FindFirstChild("AuraHighlight") then
-                    local h = Instance.new("Highlight")
-                    h.Name = "AuraHighlight"
-                    h.FillColor = Color3.fromRGB(160, 60, 255)
-                    h.OutlineColor = Color3.fromRGB(0, 255, 200)
-                    h.FillTransparency = 0.4
-                    h.Parent = slot
+                local isRare = slot.Name:lower():find("rare") or slot.Name:lower():find("legendary") or slot.Name:lower():find("mythic") or slot.Name:lower():find("godly")
+                
+                -- Проверка условий фильтра из Settings
+                if not Settings.OnlyRare or (Settings.OnlyRare and isRare) then
+                    if not slot:FindFirstChild("AuraHighlight") then
+                        local h = Instance.new("Highlight")
+                        h.Name = "AuraHighlight"
+                        h.FillColor = Settings.HighlightColor
+                        h.OutlineColor = Color3.fromRGB(0, 255, 200)
+                        h.FillTransparency = 0.4
+                        h.Parent = slot
+                    end
+                elseif Settings.OnlyRare and not isRare and slot:FindFirstChild("AuraHighlight") then
+                    slot.AuraHighlight:Destroy()
+                end
+            end
+        end)
+    else
+        pcall(function()
+            for _, slot in pairs(EggFolder:GetChildren()) do
+                if slot:FindFirstChild("AuraHighlight") then
+                    slot.AuraHighlight:Destroy()
                 end
             end
         end)
