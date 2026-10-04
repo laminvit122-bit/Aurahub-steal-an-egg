@@ -3,7 +3,6 @@ local Players = game:GetService("Players")
 local Workspace = game:GetService("Workspace")
 local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
-local VirtualInputManager = game:GetService("VirtualInputManager")
 local CoreGui = game:GetService("CoreGui")
 
 local LocalPlayer = Players.LocalPlayer
@@ -12,17 +11,18 @@ local Camera = Workspace.CurrentCamera
 -- [[ 2. НАСТРОЙКИ AURA HUB ]]
 local Settings = {
     AutoFarm = false,
-    FarmDelay = 1,
+    FarmDelay = 1.5,
+    MoveSpeed = 100, -- Безопасная скорость движения (не триггерит античит)
     RareHighlight = false,
     PlayerESP = false,
-    HomeCFrame = nil -- База сохраняется автоматически при включении
+    HomeCFrame = nil
 }
 
 local EggFolder = Workspace:WaitForChild("AreaEggSlotsClient", 5) or Workspace
 
--- [[ 3. СОЗДАНИЕ ГРАФИЧЕСКОГО ИНТЕРФЕЙСА (AuraHub) ]]
+-- [[ 3. СОЗДАНИЕ ГРАФИЧЕСКОГО ИНТЕРФЕЙСА ]]
 local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "AuraHub"
+ScreenGui.Name = "AuraHub_Official"
 ScreenGui.ResetOnSpawn = false
 
 pcall(function() ScreenGui.Parent = CoreGui end)
@@ -41,7 +41,6 @@ MainFrame.Draggable = true
 
 Instance.new("UICorner", MainFrame).CornerRadius = UDim.new(0, 14)
 
--- Градиентная рамка
 local UIStroke = Instance.new("UIStroke", MainFrame)
 UIStroke.Thickness = 1.5
 UIStroke.Color = Color3.fromRGB(130, 80, 230)
@@ -74,7 +73,7 @@ task.spawn(function()
     end
 end)
 
--- Хедер
+-- Шапка (Header)
 local Header = Instance.new("Frame", MainFrame)
 Header.Size = UDim2.new(1, 0, 0, 42)
 Header.BackgroundColor3 = Color3.fromRGB(24, 22, 35)
@@ -104,11 +103,9 @@ CloseBtn.TextSize = 18
 CloseBtn.ZIndex = 3
 Instance.new("UICorner", CloseBtn).CornerRadius = UDim.new(0, 8)
 
-CloseBtn.MouseButton1Click:Connect(function()
-    ScreenGui:Destroy()
-end)
+CloseBtn.MouseButton1Click:Connect(function() ScreenGui:Destroy() end)
 
--- Маленький сворачиваемый виджет
+-- Виджет свертывания (-)
 local MinimizedFrame = Instance.new("Frame", ScreenGui)
 MinimizedFrame.Size = UDim2.new(0, 50, 0, 50)
 MinimizedFrame.Position = UDim2.new(0.1, 0, 0.2, 0)
@@ -117,6 +114,7 @@ MinimizedFrame.Visible = false
 MinimizedFrame.Active = true
 MinimizedFrame.Draggable = true
 Instance.new("UICorner", MinimizedFrame).CornerRadius = UDim.new(0, 12)
+
 local MinStroke = Instance.new("UIStroke", MinimizedFrame)
 MinStroke.Color = Color3.fromRGB(150, 90, 255)
 MinStroke.Thickness = 2
@@ -127,7 +125,6 @@ OpenBtn.BackgroundTransparency = 1
 OpenBtn.Text = "✨"
 OpenBtn.TextSize = 22
 
--- Кнопка свертывания (-)
 local MinimizeBtn = Instance.new("TextButton", Header)
 MinimizeBtn.Size = UDim2.new(0, 28, 0, 28)
 MinimizeBtn.Position = UDim2.new(1, -68, 0.5, -14)
@@ -157,8 +154,7 @@ TabBar.Size = UDim2.new(0, 130, 1, -62)
 TabBar.BackgroundTransparency = 1
 TabBar.ZIndex = 2
 
-local TabList = Instance.new("UIListLayout", TabBar)
-TabList.Padding = UDim.new(0, 6)
+Instance.new("UIListLayout", TabBar).Padding = UDim.new(0, 6)
 
 local ContentArea = Instance.new("Frame", MainFrame)
 ContentArea.Position = UDim2.new(0, 150, 0, 52)
@@ -197,8 +193,7 @@ local function CreateTab(name, iconId)
     Page.ScrollBarThickness = 2
     Page.ScrollBarImageColor3 = Color3.fromRGB(150, 90, 255)
 
-    local PageList = Instance.new("UIListLayout", Page)
-    PageList.Padding = UDim.new(0, 8)
+    Instance.new("UIListLayout", Page).Padding = UDim.new(0, 8)
 
     Button.MouseButton1Click:Connect(function()
         for _, tab in pairs(Tabs) do
@@ -213,9 +208,10 @@ local function CreateTab(name, iconId)
     return Page
 end
 
--- Создаем вкладку Главная с иконкой домика (ID 7539983773)
+-- Вкладка Main с иконкой Домика (7539983773)
 local MainPage = CreateTab("Main", 7539983773)
-local VisualsPage = CreateTab("Visuals", 7539983773)
+-- Вкладка Visuals с иконкой Глаза (17412298151)
+local VisualsPage = CreateTab("Visuals", 17412298151)
 
 Tabs["Main"].Page.Visible = true
 Tabs["Main"].Button.BackgroundColor3 = Color3.fromRGB(130, 70, 220)
@@ -252,9 +248,22 @@ local function CreateToggle(parent, text, default, callback)
     end)
 end
 
--- [[ 5. УЛУЧШЕННЫЙ АВТО-ФАРМ ЛОГИКА ]]
+-- [[ 5. БЕЗОПАСНЫЙ ФАРМ И ОБХОД АНТИЧИТА ]]
 
--- Поиск лучшего/ближайшего яйца
+local function SafeTweenTo(targetCFrame)
+    local char = LocalPlayer.Character
+    if not char or not char:FindFirstChild("HumanoidRootPart") then return end
+    local hrp = char.HumanoidRootPart
+
+    local distance = (hrp.Position - targetCFrame.Position).Magnitude
+    local timeToReach = distance / Settings.MoveSpeed
+
+    local tweenInfo = TweenInfo.new(math.clamp(timeToReach, 0.2, 2.5), Enum.EasingStyle.Linear)
+    local tween = TweenService:Create(hrp, tweenInfo, {CFrame = targetCFrame})
+    tween:Play()
+    tween.Completed:Wait()
+end
+
 local function GetBestEggPart()
     local bestPart = nil
     pcall(function()
@@ -263,46 +272,45 @@ local function GetBestEggPart()
                 or slot:FindFirstChild("AreaEggHover") 
                 or slot:FindFirstChildWhichIsA("BasePart", true)
             if part then
-                bestPart = part -- Выбирается доступный объект яйца
+                bestPart = part
             end
         end
     end)
     return bestPart
 end
 
-CreateToggle(MainPage, "Smart Auto Farm", Settings.AutoFarm, function(v)
+CreateToggle(MainPage, "Safe Auto Farm", Settings.AutoFarm, function(v)
     Settings.AutoFarm = v
     if v and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
-        -- Сохраняем позицию базы при включении функции
         Settings.HomeCFrame = LocalPlayer.Character.HumanoidRootPart.CFrame
     end
 end)
 
-CreateToggle(VisualsPage, "Highlight Rare Eggs", Settings.RareHighlight, function(v) Settings.RareHighlight = v end)
+CreateToggle(VisualsPage, "Highlight Eggs", Settings.RareHighlight, function(v) Settings.RareHighlight = v end)
 CreateToggle(VisualsPage, "Player ESP", Settings.PlayerESP, function(v) Settings.PlayerESP = v end)
 
--- Цикл автофарма: ТП к яйцу -> Кража -> ТП на базу
+-- Безопасный цикл
 task.spawn(function()
     while task.wait(Settings.FarmDelay) do
         if Settings.AutoFarm then
             pcall(function()
-                local char = LocalPlayer.Character
-                local hrp = char and char:FindFirstChild("HumanoidRootPart")
                 local eggPart = GetBestEggPart()
+                if eggPart then
+                    -- 1. Плавное движение к яйцу
+                    SafeTweenTo(eggPart.CFrame * CFrame.new(0, 2, 0))
+                    task.wait(0.5)
 
-                if hrp and eggPart then
-                    -- 1. Телепорт к яйцу
-                    hrp.CFrame = eggPart.CFrame * CFrame.new(0, 2, 0)
-                    task.wait(0.2)
+                    -- 2. Взаимодействие (если есть ProximityPrompt)
+                    local prompt = eggPart.Parent:FindFirstChildWhichIsA("ProximityPrompt", true)
+                    if prompt then
+                        fireproximityprompt(prompt)
+                    end
 
-                    -- 2. Эмуляция зажатия кнопки E (Кража)
-                    VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.E, false, game)
-                    task.wait(1.2) -- Время воровства
-                    VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.E, false, game)
+                    task.wait(1)
 
-                    -- 3. Возврат на базу
+                    -- 3. Плавный возврат на базу
                     if Settings.HomeCFrame then
-                        hrp.CFrame = Settings.HomeCFrame
+                        SafeTweenTo(Settings.HomeCFrame)
                     end
                 end
             end)
