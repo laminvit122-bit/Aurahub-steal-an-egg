@@ -8,7 +8,7 @@ local CoreGui = game:GetService("CoreGui")
 
 local LocalPlayer = Players.LocalPlayer
 
--- [[ 2. Полный массив настроек AuraHub ]]
+-- [[ 2. НАСТРОЙКИ AURA HUB ]]
 local Settings = {
     SpeedHack = false,
     WalkSpeed = 16,
@@ -25,13 +25,13 @@ local EggFolder = Workspace:WaitForChild("AreaEggSlotsClient", 5) or Workspace
 
 -- [[ 3. СОЗДАНИЕ ГРАФИЧЕСКОГО ИНТЕРФЕЙСА ]]
 local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "AuraHub_Full_Fixed"
+ScreenGui.Name = "AuraHub_Full_Restored"
 ScreenGui.ResetOnSpawn = false
 
 pcall(function() ScreenGui.Parent = CoreGui end)
 if not ScreenGui.Parent then ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui") end
 
--- Главное окно
+-- Главная рамка
 local MainFrame = Instance.new("Frame", ScreenGui)
 MainFrame.Name = "MainFrame"
 MainFrame.Size = UDim2.new(0, 520, 0, 340)
@@ -46,7 +46,7 @@ local UIStroke = Instance.new("UIStroke", MainFrame)
 UIStroke.Thickness = 1.5
 UIStroke.Color = Color3.fromRGB(130, 80, 230)
 
--- [[ Надежное перетаскивание окна ]]
+-- [[ ИСПРАВЛЕННОЕ ПЕРЕТАСКИВАНИЕ (DRAGGABLE) ]]
 local function MakeDraggable(gui)
     local dragging, dragInput, dragStart, startPos
 
@@ -80,7 +80,7 @@ end
 
 MakeDraggable(MainFrame)
 
--- Частицы фона
+-- Анимированные частицы фона
 local ParticleContainer = Instance.new("Frame", MainFrame)
 ParticleContainer.Size = UDim2.new(1, 0, 1, 0)
 ParticleContainer.BackgroundTransparency = 1
@@ -109,7 +109,7 @@ task.spawn(function()
     end
 end)
 
--- Шапка
+-- Шапка окна
 local Header = Instance.new("Frame", MainFrame)
 Header.Size = UDim2.new(1, 0, 0, 42)
 Header.BackgroundColor3 = Color3.fromRGB(24, 22, 35)
@@ -127,7 +127,7 @@ Title.TextXAlignment = Enum.TextXAlignment.Left
 Title.BackgroundTransparency = 1
 Title.ZIndex = 3
 
--- Закрытие и сворачивание
+-- Кнопки закрытия и сворачивания
 local CloseBtn = Instance.new("TextButton", Header)
 CloseBtn.Size = UDim2.new(0, 28, 0, 28)
 CloseBtn.Position = UDim2.new(1, -34, 0.5, -14)
@@ -150,6 +150,7 @@ MinimizeBtn.TextSize = 18
 MinimizeBtn.ZIndex = 3
 Instance.new("UICorner", MinimizeBtn).CornerRadius = UDim.new(0, 8)
 
+-- Свернутая иконка (Кубик)
 local MinimizedFrame = Instance.new("Frame", ScreenGui)
 MinimizedFrame.Size = UDim2.new(0, 44, 0, 44)
 MinimizedFrame.Position = UDim2.new(0.1, 0, 0.2, 0)
@@ -242,7 +243,7 @@ local function CreateTab(name, iconId)
     return Page
 end
 
--- Вкладки AuraHub
+-- Создаем привычные вкладки
 local MainPage = CreateTab("Main", 7539983773)
 local VisualsPage = CreateTab("Visuals", 17412298151)
 local SettingsPage = CreateTab("Settings", 11956055886)
@@ -250,7 +251,7 @@ local SettingsPage = CreateTab("Settings", 11956055886)
 Tabs["Main"].Page.Visible = true
 Tabs["Main"].Button.BackgroundColor3 = Color3.fromRGB(130, 70, 220)
 
--- [[ ВСПЛЫВАЮЩИЕ НАСТРОЙКИ В КНОПКАХ (С ШЕСТЕРЕНКОЙ) ]]
+-- [[ КНОПКИ ФУНКЦИЙ С ШЕСТЕРЕНКОЙ НАСТРОЕК ]]
 local function CreateToggleWithSettings(parent, text, defaultState, onToggle, createSubSettingsFunc)
     local Container = Instance.new("Frame", parent)
     Container.Size = UDim2.new(1, -10, 0, 40)
@@ -286,6 +287,7 @@ local function CreateToggleWithSettings(parent, text, defaultState, onToggle, cr
         onToggle(state)
     end)
 
+    -- Маленькая кнопка-шестеренка настройки внутри блока
     if createSubSettingsFunc then
         local GearSubBtn = Instance.new("ImageButton", HeaderFrame)
         GearSubBtn.Size = UDim2.new(0, 22, 0, 22)
@@ -318,7 +320,7 @@ local function CreateToggleWithSettings(parent, text, defaultState, onToggle, cr
     end
 end
 
--- MAIN TAB: Speed Hack
+-- Вкладка MAIN: Speed Hack (с шестеренкой тонких настроек скорости)
 CreateToggleWithSettings(MainPage, "Speed Hack", Settings.SpeedHack, function(v)
     Settings.SpeedHack = v
     if not v and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
@@ -329,7 +331,7 @@ end, function(subPanel)
     SpeedLabel.Size = UDim2.new(1, -20, 0, 20)
     SpeedLabel.Position = UDim2.new(0, 10, 0, 0)
     SpeedLabel.BackgroundTransparency = 1
-    SpeedLabel.Text = "Speed Value: " .. tostring(Settings.WalkSpeed)
+    SpeedLabel.Text = "Speed: " .. tostring(Settings.WalkSpeed)
     SpeedLabel.TextColor3 = Color3.fromRGB(200, 180, 255)
     SpeedLabel.Font = Enum.Font.GothamBold
     SpeedLabel.TextSize = 12
@@ -358,9 +360,10 @@ end, function(subPanel)
         SliderFill.Size = UDim2.new(pos, 0, 1, 0)
         SliderKnob.Position = UDim2.new(pos, -7, 0.5, -7)
         
-        local speedVal = math.floor(16 + (pos * 134)) -- Позволяет ставить скорость от 16 до 150 без лимита
+        -- Сняты любые лимиты (диапазон 16 - 150)
+        local speedVal = math.floor(16 + (pos * 134))
         Settings.WalkSpeed = speedVal
-        SpeedLabel.Text = "Speed Value: " .. tostring(speedVal)
+        SpeedLabel.Text = "Speed: " .. tostring(speedVal)
     end
 
     SliderBack.InputBegan:Connect(function(input)
@@ -383,7 +386,7 @@ end, function(subPanel)
     end)
 end)
 
--- VISUALS TAB: Highlight Eggs
+-- Вкладка VISUALS: Highlight Eggs
 CreateToggleWithSettings(VisualsPage, "Highlight Eggs", Settings.RareHighlight, function(v)
     Settings.RareHighlight = v
 end, function(subPanel)
@@ -404,12 +407,12 @@ end, function(subPanel)
     end)
 end)
 
--- VISUALS TAB: Player ESP
+-- Вкладка VISUALS: Player ESP
 CreateToggleWithSettings(VisualsPage, "Player ESP", Settings.PlayerESP, function(v)
     Settings.PlayerESP = v
 end)
 
--- SETTINGS TAB
+-- Вкладка SETTINGS: Частицы
 local function CreateButton(parent, text, callback)
     local Frame = Instance.new("Frame", parent)
     Frame.Size = UDim2.new(1, -10, 0, 40)
@@ -432,9 +435,9 @@ CreateButton(SettingsPage, "Toggle UI Particles", function()
     ParticleContainer.Visible = Settings.ParticlesEnabled
 end)
 
--- [[ ИСПОЛНЕНИЕ ФУНКЦИЙ ]]
+-- [[ ИСПОЛНЕНИЕ ЛОГИКИ ]]
 
--- Speed Hack Loop
+-- Цикл скорости
 RunService.Stepped:Connect(function()
     pcall(function()
         if Settings.SpeedHack and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
@@ -443,7 +446,7 @@ RunService.Stepped:Connect(function()
     end)
 end)
 
--- Highlight Eggs Loop
+-- Цикл подсветки яиц
 RunService.RenderStepped:Connect(function()
     if Settings.RareHighlight then
         pcall(function()
